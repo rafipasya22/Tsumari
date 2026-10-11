@@ -25,7 +25,6 @@ def mmss(t: float) -> str:
 
 
 def clean_segments(segments: list[dict]) -> list[dict]:
-    """Drop empty segments and exact consecutive repeats (Whisper loops)."""
     out, prev = [], None
     for s in segments:
         text = s["text"].strip()
@@ -75,7 +74,6 @@ def embed(texts: list[str]) -> np.ndarray:
 
 
 def gap_scores(emb: np.ndarray, k: int = 2) -> np.ndarray:
-    """scores[j] = similarity across the gap between window j and j+1."""
     scores = []
     for i in range(1, len(emb)):
         left = emb[max(0, i - k):i].mean(axis=0)
@@ -85,7 +83,6 @@ def gap_scores(emb: np.ndarray, k: int = 2) -> np.ndarray:
 
 
 def depth_scores(scores: np.ndarray) -> np.ndarray:
-    """TextTiling-style depth: how deep each valley is relative to its neighboring peaks."""
     if len(scores) >= 3:
         padded = np.pad(scores, 1, mode="edge")
         s = np.convolve(padded, np.ones(3) / 3, mode="valid")  
@@ -104,7 +101,6 @@ def depth_scores(scores: np.ndarray) -> np.ndarray:
 
 
 def pick_boundaries(windows, scores, min_chapter, max_chapters, sensitivity) -> list[int]:
-    """Return gap indices j; a new chapter starts at window j+1."""
     depth = depth_scores(scores)
     if len(depth) == 0:
         return []
