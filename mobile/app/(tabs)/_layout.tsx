@@ -24,7 +24,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     height: 56,
-    paddingHorizontal: 14, 
+    paddingHorizontal: 14,
     gap: 4,
     borderRadius: 28,
     borderWidth: 1.5,
@@ -88,7 +88,7 @@ function NavItem({
     }
     setShowLabel(true);
     const timer = setTimeout(() => setShowLabel(false), 3000);
-    return () => clearTimeout(timer); 
+    return () => clearTimeout(timer);
   }, [selected]);
 
   return (
@@ -215,6 +215,7 @@ export default function TabLayout() {
         name="index"
         options={{
           title: "Home",
+          headerShown: false,
           headerRight: () => (
             <Link href="/modal" asChild>
               <Pressable style={{ marginRight: 15 }}>
