@@ -233,8 +233,14 @@ export default function TabLayout() {
         }}
       />
 
-      <Tabs.Screen name="import" options={{ title: "Import" }} />
-      <Tabs.Screen name="two" options={{ title: "Settings" }} />
+      <Tabs.Screen
+        name="import"
+        options={{ title: "Import", headerShown: false }}
+      />
+      <Tabs.Screen
+        name="two"
+        options={{ title: "Settings", headerShown: false }}
+      />
     </Tabs>
   );
 }
