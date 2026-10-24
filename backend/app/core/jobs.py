@@ -27,6 +27,12 @@ def update_job(job_id: str, **fields) -> None:
     fields["updated_at"] = _now()
     get_client().table("jobs").update(fields).eq("id", job_id).execute()
 
+def list_jobs(statuses: list[str] | None = None, limit: int = 20) -> list[dict]:
+    q = get_client().table("jobs").select(PUBLIC_COLUMNS)
+    if statuses:
+        q = q.in_("status", statuses)
+    res = q.order("created_at", desc=True).limit(limit).execute()
+    return res.data or []
 
 def claim_next_job() -> dict | None:
     c = get_client()
@@ -41,6 +47,9 @@ def claim_next_job() -> dict | None:
                .execute())
     return job if claimed.data else None
 
+def get_input_path(job_id: str) -> str | None:
+    res = get_client().table("jobs").select("input_path").eq("id", job_id).limit(1).execute()
+    return res.data[0]["input_path"] if res.data else None
 
 def finish_job(job_id: str, result: dict, transcript: list[dict]) -> None:
     update_job(job_id, status="done", stage="done", progress=1, result=result, transcript=transcript)

@@ -1,6 +1,19 @@
-import { File } from "expo-file-system";
 import * as FileSystem from "expo-file-system/legacy";
-const API_URL = process.env.EXPO_PUBLIC_API_URL!;
+import Constants from "expo-constants";
+import { Platform } from "react-native";
+
+function getApiUrl(): string {
+  const host = Constants.expoConfig?.hostUri?.split(":")[0];
+  if (host) return `http://${host}:8000`;
+
+  return Platform.OS === "android"
+    ? "http://10.0.2.2:8000"
+    : "http://localhost:8000";
+}
+
+const API_URL = getApiUrl();
+console.log("API_URL =", API_URL);
+export const audioUrl = (id: string) => `${API_URL}/jobs/${id}/audio`;
 
 export type JobStatus = "queued" | "running" | "done" | "failed";
 export type Chapter = {
@@ -46,7 +59,10 @@ export async function upload(
       uploadType: FileSystem.FileSystemUploadType.MULTIPART,
       fieldName: "file",
       mimeType: file.mimeType ?? "audio/mpeg",
-      parameters: language ? { language } : undefined,
+      parameters: {
+        filename: file.name,
+        ...(language ? { language } : {}),
+      },
     });
     console.log("3. response", res.status, res.body);
     if (res.status !== 202) {
@@ -68,4 +84,17 @@ export async function getJob(id: string) {
   }
 
   return (await res.json()) as Job;
+}
+
+export async function listJobs(
+  status?: JobStatus[],
+  limit = 20,
+): Promise<Job[]> {
+  const qs = [
+    ...(status ?? []).map((s) => `status=${s}`),
+    `limit=${limit}`,
+  ].join("&");
+  const res = await fetch(`${API_URL}/jobs?${qs}`);
+  if (!res.ok) throw new Error(`Failed to load jobs (${res.status})`);
+  return res.json();
 }

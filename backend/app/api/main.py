@@ -4,11 +4,14 @@ import uuid
 from pathlib import Path
 from uuid import UUID
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 
+from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse
 from app.api.schemas import JobCreated, JobStatus
 from app.core import jobs
 from app.core.settings import settings
+from typing import Literal
+
 
 app = FastAPI(title="Tsumari API")
 
@@ -20,9 +23,19 @@ LANG_RE = re.compile(r"^[a-z]{2,3}$")
 def health():
     return {"ok": True}
 
+@app.get("/jobs", response_model=list[JobStatus])
+def jobs_list(
+    status: list[Literal["queued", "running", "done", "failed"]] | None = Query(None),
+    limit: int = Query(20, ge=1, le=100),
+):
+    return jobs.list_jobs(status, limit)
 
 @app.post("/jobs", response_model=JobCreated, status_code=202)
-def create_job(file: UploadFile = File(...), language: str | None = Form(None)):
+def create_job(
+    file: UploadFile = File(...),
+    language: str | None = Form(None),
+    filename: str | None = Form(None),
+):
     ext = Path(file.filename or "").suffix.lower()
     if ext not in settings.allowed_exts:
         raise HTTPException(415, f"Unsupported file type '{ext}'.")
@@ -45,12 +58,14 @@ def create_job(file: UploadFile = File(...), language: str | None = Form(None)):
                 out.write(chunk)
         if size == 0:
             raise HTTPException(400, "Empty file.")
-        row = jobs.create_job(job_id, file.filename, str(dest), language)
+        name = (filename or file.filename or "").strip()[:200] or None
+        row = jobs.create_job(job_id, name, str(dest), language)
     except Exception:
         shutil.rmtree(job_dir, ignore_errors=True) 
         raise
 
     return {"id": row["id"], "status": row["status"]}
+
 
 
 @app.get("/jobs/{job_id}", response_model=JobStatus)
@@ -69,3 +84,12 @@ def job_transcript(job_id: UUID):
     if row["status"] != "done":
         raise HTTPException(409, "Job is not finished yet.")
     return row["transcript"] or []
+
+@app.get("/jobs/{job_id}/audio")
+def job_audio(job_id: UUID):
+    path = jobs.get_input_path(str(job_id))
+    if not path:
+        raise HTTPException(404, "Job has no input_path.")
+    if not Path(path).exists():
+        raise HTTPException(404, f"File missing on disk: {path}")
+    return FileResponse(path)

@@ -20,6 +20,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { SymbolView } from "expo-symbols";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
+import { useRouter } from "expo-router";
 
 export default function ImportScreen() {
   const [asset, setAsset] = useState<DocumentPicker.DocumentPickerAsset | null>(
@@ -33,6 +34,7 @@ export default function ImportScreen() {
   const [lang, setLang] = useState("Auto-detect");
   const [langOpen, setLangOpen] = useState(false);
   const langProgress = useSharedValue(0);
+  const router = useRouter();
 
   const player = useAudioPlayer(asset?.uri ?? null);
   const status = useAudioPlayerStatus(player);
@@ -90,6 +92,14 @@ export default function ImportScreen() {
     }, 3000);
     return () => clearInterval(timer);
   }, [jobId]);
+
+  useEffect(() => {
+    if (job?.status !== "done" || !jobId) return;
+    router.push({ pathname: "/summary/[id]", params: { id: jobId } });
+    setAsset(null);
+    setJobId(null);
+    setJob(null);
+  }, [job?.status]);
 
   return (
     <View style={styles.screen}>

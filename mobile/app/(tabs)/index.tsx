@@ -3,6 +3,7 @@ import {
   ScrollView,
   Pressable,
   useWindowDimensions,
+  ActivityIndicator,
 } from "react-native";
 import Animated, {
   useAnimatedStyle,
@@ -16,6 +17,10 @@ import Animated, {
 import { SymbolView } from "expo-symbols";
 
 import { Text, View } from "@/components/Themed";
+
+import { useEffect, useCallback, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { listJobs, Job as ApiJob } from "@/lib/api";
 
 const SCREEN_PADDING = 16;
 const CARD_GAP = 12;
@@ -35,6 +40,13 @@ const list_max_timestampHeights =
   max_visTimestamp * timestamp_height + (max_visTimestamp - 1) * timestamp_gap;
 
 type Job = { id: string; title: string; percent: number; stage: string };
+const baseName = (name: string | null) =>
+  (name ?? "Untitled").replace(/\.[^.]+$/, "");
+
+const mmss = (sec: number) =>
+  `${Math.floor(sec / 60)}:${Math.floor(sec % 60)
+    .toString()
+    .padStart(2, "0")}`;
 
 function InProgressCard({ job, width }: { job: Job; width: number }) {
   const fillStyle = useAnimatedStyle(() => ({
@@ -44,7 +56,7 @@ function InProgressCard({ job, width }: { job: Job; width: number }) {
   return (
     <View style={[styles.progressContainer, { width }]}>
       <View style={styles.progressContainerTop}>
-        <Text style={styles.conTitle} numberOfLines={1}>
+        <Text style={styles.progTitle} numberOfLines={1}>
           {job.title}
         </Text>
         <Text style={styles.conTitle}>{job.percent}%</Text>
@@ -82,6 +94,8 @@ function Dot({
 }
 
 export default function TabOneScreen() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
   const { width } = useWindowDimensions();
   const scrollX = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler((e) => {
@@ -92,31 +106,55 @@ export default function TabOneScreen() {
     width: withTiming(`${percent}%`, { duration: 600 }),
   }));
 
-  const inProgress: Job[] = [
-    {
-      id: "1",
-      title: "Inflation and Interest Rates",
-      percent: 45,
-      stage: "Transcribing 9/20",
-    },
-    {
-      id: "2",
-      title: "Indie Music Podcast #13",
-      percent: 80,
-      stage: "Chaptering",
-    },
-    { id: "3", title: "Product Design Talk", percent: 10, stage: "Chunking" },
-  ];
-  const recent = Array.from({ length: 8 }, (_, i) => ({
-    id: String(i),
-    title: `Sample recording number ${i + 1} with a very long title`,
-    duration: "52 min",
-    chapters: 6,
+  const [active, setActive] = useState<ApiJob[]>([]);
+  const [done, setDone] = useState<ApiJob[]>([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      const load = async () => {
+        try {
+          const [a, d] = await Promise.all([
+            listJobs(["queued", "running"]),
+            listJobs(["done"]),
+          ]);
+          if (alive) {
+            setActive(a);
+            setDone(d);
+          }
+        } catch {
+        } finally {
+          if (alive) setLoading(false);
+        }
+      };
+      load();
+      const t = setInterval(load, 3000);
+      return () => {
+        alive = false;
+        clearInterval(t);
+      };
+    }, []),
+  );
+
+  const inProgress: Job[] = active.map((j) => ({
+    id: j.id,
+    title: baseName(j.filename),
+    percent: Math.round(j.progress * 100),
+    stage: j.stage ?? "queued",
   }));
-  const timestamps = Array.from({ length: 8 }, (_, i) => ({
-    id: String(i),
-    time: "3:44",
-    caps: `Haduh GOBLOGG ke-${i} Haduh GOBLOGG ke-${i}Haduh GOBLOGG ke-${i}Haduh GOBLOGG ke-${i}Haduh GOBLOGG ke-${i}`,
+
+  const recent = done.map((j) => ({
+    id: j.id,
+    title: baseName(j.filename),
+    duration: `${Math.round((j.result?.duration ?? 0) / 60)} min`,
+    chapters: j.result?.chapters.length ?? 0,
+  }));
+
+  const latest = done[0];
+  const timestamps = (latest?.result?.chapters ?? []).map((c) => ({
+    id: String(c.index),
+    time: mmss(c.start),
+    caps: c.title,
   }));
 
   const cardWidth = width - SCREEN_PADDING * 2;
@@ -128,157 +166,183 @@ export default function TabOneScreen() {
       <View style={styles.titleBar}>
         <Text style={styles.appTitle}>つまり</Text>
       </View>
-      <ScrollView
-        style={styles.mainContainer}
-        contentContainerStyle={styles.mainContent}
-      >
-        <View style={styles.containerGap}>
-          <View style={styles.lastSummaryCon}>
-            <View style={styles.lastSummaryTop}>
-              <Text style={styles.conSecondary}>Latest Summary</Text>
-              <Text style={styles.conSecondary}>•</Text>
-              <Text style={styles.conSecondary}>32 Min</Text>
-            </View>
-
-            <Text
-              numberOfLines={2}
-              ellipsizeMode="tail"
-              style={styles.lastSummaryTitle}
-            >
-              Sample recording number 2 with a very long title
-            </Text>
-            <Text
-              numberOfLines={3}
-              ellipsizeMode="tail"
-              style={styles.lastSummaryOverview}
-            >
-              Sample recording number 2 with a very long titleSample recording
-              number 2 with a very long titleSample recording number 2 with a
-              very long titleSample recording number 2 with a very long
-              titleSample recording number 2 with a very long titleSample
-              recording number 2 with a very long title
-            </Text>
-
-            <View
-              style={styles.separator}
-              lightColor="#eee"
-              darkColor="rgb(77, 77, 78)"
-            />
-
-            <View style={styles.timestampList}>
-              {shown.map((item) => (
-                <View key={item.id} style={styles.summaryBottomItems}>
-                  <View style={styles.timestamp}>
-                    <Text style={styles.conSecondary}>{item.time}</Text>
-                  </View>
-                  <Text
-                    numberOfLines={2}
-                    ellipsizeMode="tail"
-                    style={styles.conSecondary}
-                  >
-                    {item.caps}
+      {loading ? (
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="large" color="#009ee8" />
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.mainContainer}
+          contentContainerStyle={styles.mainContent}
+        >
+          {latest && (
+            <View style={styles.containerGap}>
+              <View style={styles.lastSummaryCon}>
+                <View style={styles.lastSummaryTop}>
+                  <Text style={styles.conSecondary}>Latest Summary</Text>
+                  <Text style={styles.conSecondary}>•</Text>
+                  <Text style={styles.conSecondary}>
+                    {Math.round((latest.result?.duration ?? 0) / 60)} Min
                   </Text>
                 </View>
-              ))}
-              {remaining > 0 && (
-                <Text style={styles.moreChapters}>
-                  + {remaining} more chapters
-                </Text>
-              )}
-            </View>
-            <View style={styles.bottomSummary}>
-              <Pressable style={styles.button}>
-                <Text style={styles.buttonText}>Open Summary</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
 
-        <View style={styles.containerGap}>
-          <Text style={styles.title}>In Progress</Text>
-          <Animated.ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            snapToInterval={cardWidth + CARD_GAP}
-            disableIntervalMomentum
-            decelerationRate="fast"
-            contentContainerStyle={styles.progressRow}
-            onScroll={onScroll}
-            scrollEventThrottle={16}
-          >
-            {inProgress.map((job) => (
-              <InProgressCard key={job.id} job={job} width={cardWidth} />
-            ))}
-          </Animated.ScrollView>
-          {inProgress.length > 1 && (
-            <View style={styles.dots}>
-              {inProgress.map((j, i) => (
-                <Dot
-                  key={j.id}
-                  index={i}
-                  scrollX={scrollX}
-                  step={cardWidth + CARD_GAP}
+                <Text
+                  numberOfLines={2}
+                  ellipsizeMode="tail"
+                  style={styles.lastSummaryTitle}
+                >
+                  {baseName(latest.filename)}
+                </Text>
+                <Text
+                  numberOfLines={3}
+                  ellipsizeMode="tail"
+                  style={styles.lastSummaryOverview}
+                >
+                  {latest.result?.tldr}
+                </Text>
+
+                <View
+                  style={styles.separator}
+                  lightColor="#eee"
+                  darkColor="rgb(77, 77, 78)"
                 />
-              ))}
+
+                <View style={styles.timestampList}>
+                  {shown.map((item) => (
+                    <View key={item.id} style={styles.summaryBottomItems}>
+                      <View style={styles.timestamp}>
+                        <Text style={styles.conSecondary}>{item.time}</Text>
+                      </View>
+                      <Text
+                        numberOfLines={2}
+                        ellipsizeMode="tail"
+                        style={styles.conSecondary}
+                      >
+                        {item.caps}
+                      </Text>
+                    </View>
+                  ))}
+                  {remaining > 0 && (
+                    <Text style={styles.moreChapters}>
+                      + {remaining} more chapters
+                    </Text>
+                  )}
+                </View>
+                <View style={styles.bottomSummary}>
+                  <Pressable
+                    style={styles.button}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/summary/[id]",
+                        params: { id: latest.id },
+                      })
+                    }
+                  >
+                    <Text style={styles.buttonText}>Open Summary</Text>
+                  </Pressable>
+                </View>
+              </View>
             </View>
           )}
-        </View>
-
-        <View style={styles.containerGap}>
-          <Text style={styles.title}>Recent</Text>
-          <ScrollView
-            style={styles.recentScroll}
-            contentContainerStyle={styles.recentContainer}
-            showsVerticalScrollIndicator={false}
-            nestedScrollEnabled
-          >
-            {recent.map((item) => (
-              <View key={item.id} style={styles.recentItems}>
-                <View style={styles.recentStart}>
-                  <View style={styles.recentItemIcons}>
+          {inProgress.length > 0 && (
+            <View style={styles.containerGap}>
+              <Text style={styles.title}>In Progress</Text>
+              <Animated.ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                snapToInterval={cardWidth + CARD_GAP}
+                disableIntervalMomentum
+                decelerationRate="fast"
+                contentContainerStyle={styles.progressRow}
+                onScroll={onScroll}
+                scrollEventThrottle={16}
+              >
+                {inProgress.map((job) => (
+                  <InProgressCard key={job.id} job={job} width={cardWidth} />
+                ))}
+              </Animated.ScrollView>
+              {inProgress.length > 1 && (
+                <View style={styles.dots}>
+                  {inProgress.map((j, i) => (
+                    <Dot
+                      key={j.id}
+                      index={i}
+                      scrollX={scrollX}
+                      step={cardWidth + CARD_GAP}
+                    />
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+          <View style={styles.containerGap}>
+            <Text style={styles.title}>Recent</Text>
+            <ScrollView
+              style={styles.recentScroll}
+              contentContainerStyle={styles.recentContainer}
+              showsVerticalScrollIndicator={false}
+              nestedScrollEnabled
+            >
+              {recent.map((item) => (
+                <Pressable
+                  key={item.id}
+                  style={({ pressed }) => [
+                    styles.recentItems,
+                    pressed && { opacity: 0.6 },
+                  ]}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/summary/[id]",
+                      params: { id: item.id },
+                    })
+                  }
+                >
+                  <View style={styles.recentStart}>
+                    <View style={styles.recentItemIcons}>
+                      <SymbolView
+                        name={{
+                          ios: "waveform",
+                          android: "graphic_eq",
+                          web: "graphic_eq",
+                        }}
+                        tintColor="#00567b"
+                        size={24}
+                      />
+                    </View>
+                    <View style={styles.recentMid}>
+                      <Text
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                        style={styles.recentTitle}
+                      >
+                        {item.title}
+                      </Text>
+                      <View style={styles.recentMidLow}>
+                        <Text style={styles.conSecondary}>{item.duration}</Text>
+                        <Text style={styles.conSecondary}>•</Text>
+                        <Text style={styles.conSecondary}>
+                          {item.chapters} chapters
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                  <View style={styles.recentEnd}>
                     <SymbolView
                       name={{
-                        ios: "waveform",
-                        android: "graphic_eq",
-                        web: "graphic_eq",
+                        ios: "chevron.right",
+                        android: "chevron_right",
+                        web: "chevron_right",
                       }}
-                      tintColor="#00567b"
+                      tintColor="#f6f8f8"
                       size={24}
                     />
                   </View>
-                  <View style={styles.recentMid}>
-                    <Text
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                      style={styles.recentTitle}
-                    >
-                      {item.title}
-                    </Text>
-                    <View style={styles.recentMidLow}>
-                      <Text style={styles.conSecondary}>{item.duration}</Text>
-                      <Text style={styles.conSecondary}>•</Text>
-                      <Text style={styles.conSecondary}>
-                        {item.chapters} chapters
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-                <View style={styles.recentEnd}>
-                  <SymbolView
-                    name={{
-                      ios: "chevron.right",
-                      android: "chevron_right",
-                      web: "chevron_right",
-                    }}
-                    tintColor="#f6f8f8"
-                    size={24}
-                  />
-                </View>
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-      </ScrollView>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -295,6 +359,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 85,
   },
+  loadingWrap: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingBottom: 85,
+  },
   titleBar: {
     flexDirection: "row",
     justifyContent: "center",
@@ -302,11 +372,11 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     marginBottom: 10,
   },
-  bottomSummary:{
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    backgroundColor: 'transparent'
+  bottomSummary: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    backgroundColor: "transparent",
   },
   appTitle: {
     fontSize: 25,
@@ -323,6 +393,11 @@ const styles = StyleSheet.create({
   conTitle: {
     fontSize: 17,
     fontWeight: "600",
+  },
+  progTitle: {
+    fontSize: 17,
+    fontWeight: "600",
+    width: 160
   },
   conSecondary: {
     fontSize: 15,

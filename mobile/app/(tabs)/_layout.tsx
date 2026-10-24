@@ -1,5 +1,5 @@
 import { SymbolView } from "expo-symbols";
-import { Link, Tabs, usePathname } from "expo-router";
+import { Link, Tabs, usePathname, useRouter } from "expo-router";
 import { View, Pressable, StyleSheet } from "react-native";
 import { useEffect, useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -127,9 +127,10 @@ const TABS: Record<
   },
 };
 
-function FloatingTabBar({ state, navigation }: TabBarProps) {
+function FloatingTabBar({ state }: TabBarProps) {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
-  const colorScheme = useColorScheme();
+  const colorScheme = useColorScheme() ?? "dark";
 
   return (
     <View
@@ -146,13 +147,10 @@ function FloatingTabBar({ state, navigation }: TabBarProps) {
         {state.routes.map((route, index) => {
           const selected = state.index === index;
           const onPress = () => {
-            const event = navigation.emit({
-              type: "tabPress",
-              target: route.key,
-              canPreventDefault: true,
-            });
-            if (!selected && !event.defaultPrevented)
-              navigation.navigate(route.name, route.params);
+            if (selected) return;
+            router.navigate(
+              (route.name === "index" ? "/" : `/${route.name}`) as never,
+            );
           };
 
           if (route.name === "import") {
@@ -223,7 +221,6 @@ export default function TabLayout() {
                   <SymbolView
                     name={{ ios: "info.circle", android: "info", web: "info" }}
                     size={25}
-                    tintColor={Colors[colorScheme].text}
                     style={{ opacity: pressed ? 0.5 : 1 }}
                   />
                 )}
