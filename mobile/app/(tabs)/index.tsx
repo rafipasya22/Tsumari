@@ -30,7 +30,7 @@ const LIST_MAX_HEIGHT =
 const timestamp_height = 34;
 const timestamp_gap = 10;
 const TS_WIDTH = 56;
-const max_visTimestamp = 2;
+const max_visTimestamp = 3;
 const list_max_timestampHeights =
   max_visTimestamp * timestamp_height + (max_visTimestamp - 1) * timestamp_gap;
 
@@ -125,151 +125,160 @@ export default function TabOneScreen() {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.containerGap}>
-        <View style={styles.lastSummaryCon}>
-          <View style={styles.lastSummaryTop}>
-            <Text style={styles.conSecondary}>Latest Summary</Text>
-            <Text style={styles.conSecondary}>•</Text>
-            <Text style={styles.conSecondary}>32 Min</Text>
-          </View>
+      <View style={styles.titleBar}>
+        <Text style={styles.appTitle}>つまり</Text>
+      </View>
+      <ScrollView
+        style={styles.mainContainer}
+        contentContainerStyle={styles.mainContent}
+      >
+        <View style={styles.containerGap}>
+          <View style={styles.lastSummaryCon}>
+            <View style={styles.lastSummaryTop}>
+              <Text style={styles.conSecondary}>Latest Summary</Text>
+              <Text style={styles.conSecondary}>•</Text>
+              <Text style={styles.conSecondary}>32 Min</Text>
+            </View>
 
-          <Text
-            numberOfLines={2}
-            ellipsizeMode="tail"
-            style={styles.lastSummaryTitle}
-          >
-            Sample recording number 2 with a very long title
-          </Text>
-          <Text
-            numberOfLines={3}
-            ellipsizeMode="tail"
-            style={styles.lastSummaryOverview}
-          >
-            Sample recording number 2 with a very long titleSample recording
-            number 2 with a very long titleSample recording number 2 with a very
-            long titleSample recording number 2 with a very long titleSample
-            recording number 2 with a very long titleSample recording number 2
-            with a very long title
-          </Text>
+            <Text
+              numberOfLines={2}
+              ellipsizeMode="tail"
+              style={styles.lastSummaryTitle}
+            >
+              Sample recording number 2 with a very long title
+            </Text>
+            <Text
+              numberOfLines={3}
+              ellipsizeMode="tail"
+              style={styles.lastSummaryOverview}
+            >
+              Sample recording number 2 with a very long titleSample recording
+              number 2 with a very long titleSample recording number 2 with a
+              very long titleSample recording number 2 with a very long
+              titleSample recording number 2 with a very long titleSample
+              recording number 2 with a very long title
+            </Text>
 
-          <View
-            style={styles.separator}
-            lightColor="#eee"
-            darkColor="rgb(7, 176, 243)"
-          />
+            <View
+              style={styles.separator}
+              lightColor="#eee"
+              darkColor="rgb(77, 77, 78)"
+            />
 
-          <View style={styles.timestampList}>
-            {shown.map((item) => (
-              <View key={item.id} style={styles.summaryBottomItems}>
-                <View style={styles.timestamp}>
-                  <Text style={styles.conSecondary}>{item.time}</Text>
+            <View style={styles.timestampList}>
+              {shown.map((item) => (
+                <View key={item.id} style={styles.summaryBottomItems}>
+                  <View style={styles.timestamp}>
+                    <Text style={styles.conSecondary}>{item.time}</Text>
+                  </View>
+                  <Text
+                    numberOfLines={2}
+                    ellipsizeMode="tail"
+                    style={styles.conSecondary}
+                  >
+                    {item.caps}
+                  </Text>
                 </View>
-                <Text
-                  numberOfLines={2}
-                  ellipsizeMode="tail"
-                  style={styles.conSecondary}
-                >
-                  {item.caps}
+              ))}
+              {remaining > 0 && (
+                <Text style={styles.moreChapters}>
+                  + {remaining} more chapters
                 </Text>
-              </View>
-            ))}
-            {remaining > 0 && (
-              <Text style={styles.moreChapters}>
-                + {remaining} more chapters
-              </Text>
-            )}
+              )}
+            </View>
+            <View style={styles.bottomSummary}>
+              <Pressable style={styles.button}>
+                <Text style={styles.buttonText}>Open Summary</Text>
+              </Pressable>
+            </View>
           </View>
-
-          <Pressable style={styles.button}>
-            <Text style={styles.buttonText}>Open Summary</Text>
-          </Pressable>
         </View>
-      </View>
 
-      <View style={styles.containerGap}>
-        <Text style={styles.title}>In Progress</Text>
-        <Animated.ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          snapToInterval={cardWidth + CARD_GAP}
-          disableIntervalMomentum
-          decelerationRate="fast"
-          contentContainerStyle={styles.progressRow}
-          onScroll={onScroll}
-          scrollEventThrottle={16}
-        >
-          {inProgress.map((job) => (
-            <InProgressCard key={job.id} job={job} width={cardWidth} />
-          ))}
-        </Animated.ScrollView>
-        {inProgress.length > 1 && (
-          <View style={styles.dots}>
-            {inProgress.map((j, i) => (
-              <Dot
-                key={j.id}
-                index={i}
-                scrollX={scrollX}
-                step={cardWidth + CARD_GAP}
-              />
+        <View style={styles.containerGap}>
+          <Text style={styles.title}>In Progress</Text>
+          <Animated.ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            snapToInterval={cardWidth + CARD_GAP}
+            disableIntervalMomentum
+            decelerationRate="fast"
+            contentContainerStyle={styles.progressRow}
+            onScroll={onScroll}
+            scrollEventThrottle={16}
+          >
+            {inProgress.map((job) => (
+              <InProgressCard key={job.id} job={job} width={cardWidth} />
             ))}
-          </View>
-        )}
-      </View>
+          </Animated.ScrollView>
+          {inProgress.length > 1 && (
+            <View style={styles.dots}>
+              {inProgress.map((j, i) => (
+                <Dot
+                  key={j.id}
+                  index={i}
+                  scrollX={scrollX}
+                  step={cardWidth + CARD_GAP}
+                />
+              ))}
+            </View>
+          )}
+        </View>
 
-      <View style={styles.containerGap}>
-        <Text style={styles.title}>Recent</Text>
-        <ScrollView
-          style={styles.recentScroll}
-          contentContainerStyle={styles.recentContainer}
-          showsVerticalScrollIndicator={false}
-          nestedScrollEnabled
-        >
-          {recent.map((item) => (
-            <View key={item.id} style={styles.recentItems}>
-              <View style={styles.recentStart}>
-                <View style={styles.recentItemIcons}>
+        <View style={styles.containerGap}>
+          <Text style={styles.title}>Recent</Text>
+          <ScrollView
+            style={styles.recentScroll}
+            contentContainerStyle={styles.recentContainer}
+            showsVerticalScrollIndicator={false}
+            nestedScrollEnabled
+          >
+            {recent.map((item) => (
+              <View key={item.id} style={styles.recentItems}>
+                <View style={styles.recentStart}>
+                  <View style={styles.recentItemIcons}>
+                    <SymbolView
+                      name={{
+                        ios: "waveform",
+                        android: "graphic_eq",
+                        web: "graphic_eq",
+                      }}
+                      tintColor="#00567b"
+                      size={24}
+                    />
+                  </View>
+                  <View style={styles.recentMid}>
+                    <Text
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                      style={styles.recentTitle}
+                    >
+                      {item.title}
+                    </Text>
+                    <View style={styles.recentMidLow}>
+                      <Text style={styles.conSecondary}>{item.duration}</Text>
+                      <Text style={styles.conSecondary}>•</Text>
+                      <Text style={styles.conSecondary}>
+                        {item.chapters} chapters
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+                <View style={styles.recentEnd}>
                   <SymbolView
                     name={{
-                      ios: "waveform",
-                      android: "graphic_eq",
-                      web: "graphic_eq",
+                      ios: "chevron.right",
+                      android: "chevron_right",
+                      web: "chevron_right",
                     }}
-                    tintColor="#00567b"
+                    tintColor="#f6f8f8"
                     size={24}
                   />
                 </View>
-                <View style={styles.recentMid}>
-                  <Text
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                    style={styles.recentTitle}
-                  >
-                    {item.title}
-                  </Text>
-                  <View style={styles.recentMidLow}>
-                    <Text style={styles.conSecondary}>{item.duration}</Text>
-                    <Text style={styles.conSecondary}>•</Text>
-                    <Text style={styles.conSecondary}>
-                      {item.chapters} chapters
-                    </Text>
-                  </View>
-                </View>
               </View>
-              <View style={styles.recentEnd}>
-                <SymbolView
-                  name={{
-                    ios: "chevron.right",
-                    android: "chevron_right",
-                    web: "chevron_right",
-                  }}
-                  tintColor="#f6f8f8"
-                  size={24}
-                />
-              </View>
-            </View>
-          ))}
-        </ScrollView>
-      </View>
+            ))}
+          </ScrollView>
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -277,12 +286,35 @@ export default function TabOneScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+    paddingTop: 40,
+  },
+  mainContainer: {
+    flex: 1,
+  },
+  mainContent: {
     paddingHorizontal: 16,
-    paddingVertical: 40,
+    paddingBottom: 85,
+  },
+  titleBar: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 10,
+    marginBottom: 10,
+  },
+  bottomSummary:{
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    backgroundColor: 'transparent'
+  },
+  appTitle: {
+    fontSize: 25,
+    fontWeight: "bold",
   },
   containerGap: {
     gap: 12,
-    marginBottom: 5,
+    marginBottom: 15,
   },
   title: {
     fontSize: 20,
@@ -304,20 +336,21 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
     borderRadius: 15,
     marginTop: 20,
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 3,
+    width: 160,
     justifyContent: "center",
     alignItems: "center",
   },
   buttonText: {
-    color: "#0074a6fc",
-    fontSize: 20,
+    color: "#282524fc",
+    fontSize: 17,
     fontWeight: "600",
   },
 
   lastSummaryCon: {
-    backgroundColor: "#009ee8",
-    borderColor: "#11b7ff9b",
+    backgroundColor: "#3a3a3a",
+    borderColor: "#0607079b",
     borderWidth: 1,
     shadowRadius: 2,
     borderRadius: 15,
@@ -329,7 +362,7 @@ const styles = StyleSheet.create({
     width: 180,
     padding: 7,
     borderRadius: 10,
-    backgroundColor: "#00374f4a",
+    backgroundColor: "#009ee8",
     borderColor: "#00344a9b",
     justifyContent: "center",
     alignItems: "center",
@@ -358,8 +391,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7,
     minWidth: TS_WIDTH,
     borderRadius: 10,
-    backgroundColor: "#00374f4a",
-    borderColor: "#00344a9b",
+    backgroundColor: "#6162634a",
+    borderColor: "#0303039b",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -381,8 +414,8 @@ const styles = StyleSheet.create({
 
   progressRow: { gap: CARD_GAP },
   progressContainer: {
-    backgroundColor: "#00b3ff4a",
-    borderColor: "#11b7ff9b",
+    backgroundColor: "#6968686b",
+    borderColor: "#5454549b",
     borderWidth: 1,
     shadowRadius: 2,
     borderRadius: 15,
@@ -425,8 +458,8 @@ const styles = StyleSheet.create({
   recentScroll: { maxHeight: LIST_MAX_HEIGHT },
   recentContainer: { gap: ITEM_GAP },
   recentItems: {
-    backgroundColor: "#00b3ff4a",
-    borderColor: "#11b7ff9b",
+    backgroundColor: "#6968686b",
+    borderColor: "#5454549b",
     borderWidth: 1,
     shadowRadius: 2,
     borderRadius: 15,
