@@ -6,9 +6,9 @@ import {
   StyleSheet,
   useWindowDimensions,
   ScrollView,
+  TextInput,
 } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
-import { upload, getJob, Job } from "@/lib/api";
 import Animated, {
   useAnimatedStyle,
   useAnimatedScrollHandler,
@@ -21,6 +21,7 @@ import Animated, {
 import { SymbolView } from "expo-symbols";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { useRouter } from "expo-router";
+import { upload, uploadLink, getJob, Job } from "@/lib/api";
 
 export default function ImportScreen() {
   const [asset, setAsset] = useState<DocumentPicker.DocumentPickerAsset | null>(
@@ -33,8 +34,16 @@ export default function ImportScreen() {
   const LANGS = ["Auto-detect", "English", "Indonesian"];
   const [lang, setLang] = useState("Auto-detect");
   const [langOpen, setLangOpen] = useState(false);
+  const [optionsUp, setOptions] = useState(false);
+  const optionsProg = useSharedValue(0);
   const langProgress = useSharedValue(0);
   const router = useRouter();
+
+  const [mode, setMode] = useState<"File" | "Link">("File");
+  const [link, setLink] = useState("");
+
+  const linkValid = YT_RE.test(link.trim());
+  const canSubmit = mode === "File" ? !!asset : linkValid;
 
   const player = useAudioPlayer(asset?.uri ?? null);
   const status = useAudioPlayerStatus(player);
@@ -43,8 +52,15 @@ export default function ImportScreen() {
     langProgress.value = withTiming(langOpen ? 1 : 0, { duration: 250 });
   }, [langOpen]);
 
+  useEffect(() => {
+    optionsProg.value = withTiming(optionsUp ? 1 : 0, { duration: 250 });
+  }, [optionsUp]);
+
   const optionsStyle = useAnimatedStyle(() => ({
     height: langProgress.value * LANGS.length * OPTION_H,
+  }));
+  const modeOptionsStyle = useAnimatedStyle(() => ({
+    height: optionsProg.value * LANGS.length * OPTION_H,
   }));
 
   const chevronStyle = useAnimatedStyle(() => ({
@@ -64,11 +80,12 @@ export default function ImportScreen() {
   }
 
   async function onUpload() {
-    if (!asset) return;
+    if (!canSubmit) return;
     setLoading(true);
     setError(null);
     try {
-      const { id } = await upload(asset);
+      const { id } =
+        mode === "File" ? await upload(asset!) : await uploadLink(link.trim());
       setJobId(id);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
@@ -104,80 +121,161 @@ export default function ImportScreen() {
   return (
     <View style={styles.screen}>
       <View style={styles.uploadContainer}>
-        <View style={styles.audioInfoContainer}>
-          <View style={styles.audioIcon}>
-            <SymbolView
-              name={{
-                ios: "waveform",
-                android: "graphic_eq",
-                web: "graphic_eq",
-              }}
-              tintColor="#00567b"
-              size={30}
-            />
-          </View>
-          <View style={styles.audioInfo}>
-            <Text style={styles.audioTitle} numberOfLines={1}>
-              {asset ? asset.name : "No audio selected"}
-            </Text>
-            <View style={styles.audioDetails}>
-              <Text style={styles.conSecondary}>
-                {formatDuration(status.duration)}
-              </Text>
-              <Text style={styles.conSecondary}>•</Text>
-              <Text style={styles.conSecondary}>{formatType(asset?.name)}</Text>
-              <Text style={styles.conSecondary}>•</Text>
-              <Text style={styles.conSecondary}>{formatSize(asset?.size)}</Text>
+        {mode === "File" ? (
+          <>
+            <View style={styles.audioInfoContainer}>
+              <View style={styles.audioIcon}>
+                <SymbolView
+                  name={{
+                    ios: "waveform",
+                    android: "graphic_eq",
+                    web: "graphic_eq",
+                  }}
+                  tintColor="#00567b"
+                  size={30}
+                />
+              </View>
+              <View style={styles.audioInfo}>
+                <Text style={styles.audioTitle} numberOfLines={1}>
+                  {asset ? asset.name : "No fjle selected"}
+                </Text>
+                <View style={styles.audioDetails}>
+                  <Text style={styles.conSecondary}>
+                    {formatDuration(status.duration)}
+                  </Text>
+                  <Text style={styles.conSecondary}>•</Text>
+                  <Text style={styles.conSecondary}>
+                    {formatType(asset?.name)}
+                  </Text>
+                  <Text style={styles.conSecondary}>•</Text>
+                  <Text style={styles.conSecondary}>
+                    {formatSize(asset?.size)}
+                  </Text>
+                </View>
+              </View>
             </View>
-          </View>
-        </View>
-        <View style={styles.buttonsContainer}>
-          <Pressable style={styles.audioPickButton} onPress={pickAudio}>
-            <SymbolView
-              name={
-                asset
-                  ? {
-                      ios: "arrow.clockwise",
-                      android: "refresh",
-                      web: "refresh",
-                    }
-                  : {
-                      ios: "square.and.arrow.up",
-                      android: "upload",
-                      web: "upload",
-                    }
-              }
-              tintColor="#ffffff"
-              size={22}
-              style={{ marginTop: 2 }}
+            <View style={styles.buttonsContainer}>
+              <Pressable style={styles.audioPickButton} onPress={pickAudio}>
+                <SymbolView
+                  name={
+                    asset
+                      ? {
+                          ios: "arrow.clockwise",
+                          android: "refresh",
+                          web: "refresh",
+                        }
+                      : {
+                          ios: "square.and.arrow.up",
+                          android: "upload",
+                          web: "upload",
+                        }
+                  }
+                  tintColor="#ffffff"
+                  size={22}
+                  style={{ marginTop: 2 }}
+                />
+                <Text style={styles.buttonText}>
+                  {asset ? "Change File" : "Pick File"}
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.cancelButton,
+                  (!asset || loading) && { opacity: 0.4 },
+                ]}
+                disabled={!asset || loading}
+                onPress={() => {
+                  setAsset(null);
+                  setJobId(null);
+                  setJob(null);
+                  setError(null);
+                }}
+              >
+                <SymbolView
+                  name={{
+                    ios: "waveform",
+                    android: "cancel",
+                    web: "cancel",
+                  }}
+                  tintColor="#c80000"
+                  size={24}
+                />
+              </Pressable>
+            </View>
+          </>
+        ) : (
+          <>
+            <TextInput
+              style={styles.linkInput}
+              value={link}
+              onChangeText={setLink}
+              placeholder="Paste a YouTube link"
+              placeholderTextColor="#9a9a9a"
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
             />
-            <Text style={styles.buttonText}>
-              {asset ? "Change Audio" : "Pick Audio"}
-            </Text>
-          </Pressable>
+            {link.length > 0 && !linkValid && (
+              <Text style={styles.linkError}>
+                That doesn't look like a YouTube link.
+              </Text>
+            )}
+          </>
+        )}
+
+        <View style={styles.modeOptionsContainer}>
           <Pressable
-            style={[
-              styles.cancelButton,
-              (!asset || loading) && { opacity: 0.4 },
-            ]}
-            disabled={!asset || loading}
-            onPress={() => {
-              setAsset(null);
-              setJobId(null);
-              setJob(null);
-              setError(null);
-            }}
+            style={styles.langRow}
+            onPress={() => setOptions((o) => !o)}
           >
-            <SymbolView
-              name={{
-                ios: "waveform",
-                android: "cancel",
-                web: "cancel",
-              }}
-              tintColor="#c80000"
-              size={24}
-            />
+            <View style={styles.audioLangLeft}>
+              <SymbolView
+                name={{
+                  ios: "waveform",
+                  android: "upload_file",
+                  web: "upload_file",
+                }}
+                tintColor="#ffffff"
+                size={25}
+                style={{ marginTop: 5 }}
+              />
+              <Text style={styles.langLeftText}>Upload Type:</Text>
+            </View>
+            <View style={styles.audioLangRight}>
+              <Text style={styles.langLeftText}>{mode}</Text>
+              <Animated.View style={chevronStyle}>
+                <SymbolView
+                  name={{
+                    ios: "chevron.down",
+                    android: "expand_more",
+                    web: "expand_more",
+                  }}
+                  tintColor="#fff"
+                  size={16}
+                  style={{ marginTop: 3 }}
+                />
+              </Animated.View>
+            </View>
           </Pressable>
+          <Animated.View style={[styles.modeOptionsWrap, modeOptionsStyle]}>
+            {(["File", "Link"] as const).map((m) => (
+              <Pressable
+                key={m}
+                style={[
+                  styles.modeButton,
+                  mode === m && styles.modeButtonActive,
+                ]}
+                onPress={() => {
+                  setMode(m);
+                  setOptions(false);
+                }}
+              >
+                <Text style={styles.buttonText}>
+                  {m === "File" ? "File" : "Youtube Link"}
+                </Text>
+              </Pressable>
+            ))}
+          </Animated.View>
         </View>
       </View>
       <View style={styles.audioLangContainer}>
@@ -244,9 +342,9 @@ export default function ImportScreen() {
       <Pressable
         style={[
           styles.summarizeButton,
-          (!asset || loading) && { opacity: 0.4 },
+          (!canSubmit || loading) && { opacity: 0.4 },
         ]}
-        disabled={!asset || loading}
+        disabled={!canSubmit || loading}
         onPress={onUpload}
       >
         <Text style={styles.buttonText}>
@@ -258,6 +356,8 @@ export default function ImportScreen() {
 }
 
 const OPTION_H = 40;
+const YT_RE =
+  /(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/))([A-Za-z0-9_-]{11})/;
 function formatSize(bytes?: number) {
   if (!bytes) return "--";
   const mb = bytes / 1024 / 1024;
@@ -364,6 +464,38 @@ const styles = StyleSheet.create({
     marginTop: "auto",
     marginBottom: 100,
   },
+  modeRow: {
+    flexDirection: "row",
+    backgroundColor: "#3a3a3a",
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    padding: 4,
+    marginBottom: 12,
+  },
+  modeButton: {
+    flex: 1,
+    height: 36,
+    borderRadius: 9,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modeButtonActive: { backgroundColor: "#212121" },
+  linkContainer: {
+    backgroundColor: "#3a3a3a",
+    borderRadius: 10,
+    paddingHorizontal: 15,
+    paddingVertical: 20,
+    gap: 10,
+  },
+  linkInput: {
+    backgroundColor: "#4a4a4a",
+    borderRadius: 10,
+    height: 44,
+    paddingHorizontal: 12,
+    color: "#ffffff",
+    fontSize: 15,
+  },
+  linkError: { color: "#ff6b6b", fontSize: 12 },
   cancelButton: {
     backgroundColor: "#6d6b6b",
     borderRadius: 10,
@@ -381,6 +513,15 @@ const styles = StyleSheet.create({
     marginTop: 10,
     borderWidth: 2,
     backgroundColor: "#009ee8",
+    overflow: "hidden",
+  },
+  modeOptionsContainer: {
+    borderRadius: 15,
+    paddingHorizontal: 5,
+    marginTop: 5,
+    borderWidth: 2,
+    backgroundColor: "#3a3a3a",
+    borderColor: "#2a2a2a",
     overflow: "hidden",
   },
   audioLangLeft: {
@@ -413,5 +554,10 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     marginHorizontal: -5,
     backgroundColor: "#0079ad",
+  },
+  modeOptionsWrap: {
+    overflow: "hidden",
+    marginHorizontal: -5,
+    backgroundColor: "#2a2a2a",
   },
 });

@@ -11,13 +11,20 @@ from app.api.schemas import JobCreated, JobStatus
 from app.core import jobs
 from app.core.settings import settings
 from typing import Literal
-
+from pydantic import BaseModel
 
 app = FastAPI(title="Tsumari API")
 
 READ_CHUNK = 1024 * 1024 
 LANG_RE = re.compile(r"^[a-z]{2,3}$")
+YT_RE = re.compile(
+    r"(?:youtu\.be/|youtube\.com/(?:watch\?(?:.*&)?v=|shorts/|embed/|live/))([A-Za-z0-9_-]{11})"
+)
 
+
+class YouTubeIn(BaseModel):
+    url: str
+    language: str | None = None
 
 @app.get("/health")
 def health():
@@ -87,9 +94,18 @@ def job_transcript(job_id: UUID):
 
 @app.get("/jobs/{job_id}/audio")
 def job_audio(job_id: UUID):
-    path = jobs.get_input_path(str(job_id))
-    if not path:
-        raise HTTPException(404, "Job has no input_path.")
-    if not Path(path).exists():
-        raise HTTPException(404, f"File missing on disk: {path}")
+    job_dir = settings.jobs_dir / str(job_id)
+    path = next(job_dir.glob("input.*"), None)
+    if path is None:
+        raise HTTPException(404, f"No audio file in {job_dir}")
     return FileResponse(path)
+
+@app.post("/jobs/youtube", response_model=JobCreated, status_code=202)
+def create_youtube_job(body: YouTubeIn):
+    m = YT_RE.search(body.url)
+    if not m:
+        raise HTTPException(422, "That doesn't look like a YouTube link.")
+    if body.language is not None and not LANG_RE.match(body.language):
+        raise HTTPException(422, "language must be a short code like 'en' or 'id'.")
+    row = jobs.create_job(str(uuid.uuid4()), None, "", body.language, youtube_id=m.group(1))
+    return {"id": row["id"], "status": row["status"]}

@@ -21,6 +21,7 @@ import { Text, View } from "@/components/Themed";
 import { useEffect, useCallback, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
 import { listJobs, Job as ApiJob } from "@/lib/api";
+import { baseName } from "@/lib/format";
 
 const SCREEN_PADDING = 16;
 const CARD_GAP = 12;
@@ -40,8 +41,6 @@ const list_max_timestampHeights =
   max_visTimestamp * timestamp_height + (max_visTimestamp - 1) * timestamp_gap;
 
 type Job = { id: string; title: string; percent: number; stage: string };
-const baseName = (name: string | null) =>
-  (name ?? "Untitled").replace(/\.[^.]+$/, "");
 
 const mmss = (sec: number) =>
   `${Math.floor(sec / 60)}:${Math.floor(sec % 60)

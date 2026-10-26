@@ -20,3 +20,4 @@ class JobStatus(BaseModel):
     result: dict | None = None
     created_at: datetime
     updated_at: datetime
+    youtube_id: str | None = None

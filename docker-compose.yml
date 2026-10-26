@@ -1,0 +1,38 @@
+services:
+  api:
+    build: ./backend
+    image: tsumari-backend
+    env_file: ./backend/.env
+    environment:
+      JOBS_DIR: /data/jobs
+    ports:
+      - "8000:8000"
+    volumes:
+      - tsumari-data:/data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  worker:
+    image: tsumari-backend
+    env_file: ./backend/.env
+    environment:
+      JOBS_DIR: /data/jobs
+    command: python -m app.worker.run
+    depends_on:
+      - api
+    volumes:
+      - tsumari-data:/data
+    restart: unless-stopped
+
+volumes:
+  tsumari-data:

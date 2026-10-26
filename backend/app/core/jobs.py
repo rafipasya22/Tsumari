@@ -1,11 +1,14 @@
 from app.core.db import get_client
 from datetime import datetime, timezone
 
-PUBLIC_COLUMNS = "id,status,stage,progress,filename,error,result,created_at,updated_at"
+PUBLIC_COLUMNS = "id,status,stage,progress,filename,error,result,youtube_id,created_at,updated_at"
 
 
-def create_job(job_id: str, filename: str | None, input_path: str, language: str | None) -> dict:
+def create_job(job_id: str, filename: str | None, input_path: str, language: str | None,
+               youtube_id: str | None = None) -> dict:
     row = {"id": job_id, "filename": filename, "input_path": input_path, "language": language}
+    if youtube_id:
+        row["youtube_id"] = youtube_id
     res = get_client().table("jobs").insert(row).execute()
     return res.data[0]
 
@@ -36,7 +39,7 @@ def list_jobs(statuses: list[str] | None = None, limit: int = 20) -> list[dict]:
 
 def claim_next_job() -> dict | None:
     c = get_client()
-    res = (c.table("jobs").select("id,input_path,language")
+    res = (c.table("jobs").select("id,input_path,language,youtube_id")
            .eq("status", "queued").order("created_at").limit(1).execute())
     if not res.data:
         return None

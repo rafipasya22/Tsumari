@@ -31,6 +31,7 @@ export type Job = {
   stage: string | null;
   progress: number;
   filename: string | null;
+  youtube_id: string | null;
   error: string | null;
   result: JobResult | null;
 };
@@ -75,6 +76,21 @@ export async function upload(
     console.log("UPLOAD FAILED:", e);
     throw e;
   }
+}
+
+export async function uploadLink(url: string, language?: string) {
+  const res = await fetch(`${API_URL}/jobs/youtube`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url, ...(language ? { language } : {}) }),
+  });
+  const body = await res.json().catch(() => null);
+  if (res.status !== 202) {
+    throw new Error(
+      typeof body?.detail === "string" ? body.detail : `Request failed (${res.status})`,
+    );
+  }
+  return body as { id: string; status: JobStatus };
 }
 
 export async function getJob(id: string) {
