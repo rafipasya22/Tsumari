@@ -1,6 +1,25 @@
 import * as FileSystem from "expo-file-system/legacy";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
+import { supabase } from "@/lib/supabase";
+
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function authFetch(path: string, init: RequestInit = {}) {
+  const res = await fetch(`${API_URL}${path}`, {
+    ...init,
+    headers: {
+      ...(init.headers as Record<string, string> | undefined),
+      ...(await authHeaders()),
+    },
+  });
+  if (res.status === 401) await supabase.auth.signOut();
+  return res;
+}
 
 function getApiUrl(): string {
   const host = Constants.expoConfig?.hostUri?.split(":")[0];
@@ -60,11 +79,13 @@ export async function upload(
       uploadType: FileSystem.FileSystemUploadType.MULTIPART,
       fieldName: "file",
       mimeType: file.mimeType ?? "audio/mpeg",
+      headers: await authHeaders(),
       parameters: {
         filename: file.name,
         ...(language ? { language } : {}),
       },
     });
+    if (res.status === 401) await supabase.auth.signOut();
     console.log("3. response", res.status, res.body);
     if (res.status !== 202) {
       throw new Error(
@@ -79,7 +100,7 @@ export async function upload(
 }
 
 export async function uploadLink(url: string, language?: string) {
-  const res = await fetch(`${API_URL}/jobs/youtube`, {
+  const res = await authFetch("/jobs/youtube", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ url, ...(language ? { language } : {}) }),
@@ -87,18 +108,17 @@ export async function uploadLink(url: string, language?: string) {
   const body = await res.json().catch(() => null);
   if (res.status !== 202) {
     throw new Error(
-      typeof body?.detail === "string" ? body.detail : `Request failed (${res.status})`,
+      typeof body?.detail === "string"
+        ? body.detail
+        : `Request failed (${res.status})`,
     );
   }
   return body as { id: string; status: JobStatus };
 }
 
 export async function getJob(id: string) {
-  const res = await fetch(`${API_URL}/jobs/${id}`);
-  if (!res.ok) {
-    throw new Error("Failed getting job");
-  }
-
+  const res = await authFetch(`/jobs/${id}`);
+  if (!res.ok) throw new Error("Failed getting job");
   return (await res.json()) as Job;
 }
 
@@ -110,7 +130,7 @@ export async function listJobs(
     ...(status ?? []).map((s) => `status=${s}`),
     `limit=${limit}`,
   ].join("&");
-  const res = await fetch(`${API_URL}/jobs?${qs}`);
+  const res = await authFetch(`/jobs?${qs}`);
   if (!res.ok) throw new Error(`Failed to load jobs (${res.status})`);
   return res.json();
 }

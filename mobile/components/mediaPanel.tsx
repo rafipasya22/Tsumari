@@ -19,6 +19,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { audioUrl, Job } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 
 export type MediaControls = {
   play: () => void;
@@ -63,6 +64,14 @@ function Bar({ index, playing }: { index: number; playing: boolean }) {
   return <Animated.View style={[styles.bar, style]} />;
 }
 
+function useAuthHeaders() {
+  const { session } = useAuth();
+  const [headers] = useState(() =>
+    session ? { Authorization: `Bearer ${session.access_token}` } : undefined,
+  );
+  return headers;
+}
+
 function Spectrum({ playing }: { playing: boolean }) {
   return (
     <View style={styles.spectrum}>
@@ -75,7 +84,11 @@ function Spectrum({ playing }: { playing: boolean }) {
 
 const AudioPanel = forwardRef<MediaControls, Props>(
   ({ job, onTime, onPlaying }, ref) => {
-    const player = useAudioPlayer(audioUrl(job.id), { updateInterval: 250 });
+    const headers = useAuthHeaders();
+    const player = useAudioPlayer(
+      { uri: audioUrl(job.id), headers },
+      { updateInterval: 250 },
+    );
     const status = useAudioPlayerStatus(player);
 
     useEffect(() => {
@@ -108,7 +121,8 @@ const AudioPanel = forwardRef<MediaControls, Props>(
 
 const VideoPanel = forwardRef<MediaControls, Props>(
   ({ job, onTime, onPlaying }, ref) => {
-    const player = useVideoPlayer(audioUrl(job.id), (p: any) => {
+    const headers = useAuthHeaders();
+    const player = useVideoPlayer({ uri: audioUrl(job.id), headers }, (p) => {
       p.timeUpdateEventInterval = 0.25;
     });
 

@@ -22,6 +22,7 @@ import { useEffect, useCallback, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
 import { listJobs, Job as ApiJob } from "@/lib/api";
 import { baseName } from "@/lib/format";
+import { useAuth } from "@/lib/auth";
 
 const SCREEN_PADDING = 16;
 const CARD_GAP = 12;
@@ -93,6 +94,9 @@ function Dot({
 }
 
 export default function TabOneScreen() {
+  const { session } = useAuth();
+  const userId = session?.user.id;
+
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const { width } = useWindowDimensions();
@@ -110,6 +114,11 @@ export default function TabOneScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      if (!userId) {
+        setActive([]);
+        setDone([]);
+        return;
+      }
       let alive = true;
       const load = async () => {
         try {
@@ -132,7 +141,7 @@ export default function TabOneScreen() {
         alive = false;
         clearInterval(t);
       };
-    }, []),
+    }, [userId]),
   );
 
   const inProgress: Job[] = active.map((j) => ({
@@ -396,7 +405,7 @@ const styles = StyleSheet.create({
   progTitle: {
     fontSize: 17,
     fontWeight: "600",
-    width: 160
+    width: 160,
   },
   conSecondary: {
     fontSize: 15,
