@@ -120,9 +120,9 @@ Create `backend/.env`:
 ```env
 GROQ_API_KEY=...
 WHISP=whisper-large-v3-turbo
-LLM_MODEL=...                  # a Groq chat model
+LLM_MODEL=...                  
 SUPABASE_URL=...
-SUPABASE_SERVICE_KEY=...       # service key; keep it server-side only
+SUPABASE_SERVICE_KEY=...       
 ```
 
 **With Docker (recommended):**
@@ -138,11 +138,11 @@ This starts two containers from one image: `api` on port 8000 and `worker`. They
 ```bash
 cd backend
 python -m venv venv
-venv\Scripts\activate          # macOS/Linux: source venv/bin/activate
+venv\Scripts\activate          
 pip install -r requirements.txt
 
 uvicorn app.api.main:app --host 0.0.0.0 --reload
-python -m app.worker.run       # in a second terminal
+python -m app.worker.run       
 ```
 
 The worker marks jobs left in `running` by a previous crash as failed on startup, then polls for queued jobs.
